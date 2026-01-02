@@ -8,7 +8,7 @@ const io = require('socket.io')(http);
 const path = require('path');
 const os = require('os');
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Get local IP address for LAN access
 function getLocalIP() {
