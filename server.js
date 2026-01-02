@@ -177,7 +177,6 @@ http.listen(PORT, '0.0.0.0', () => {
   console.log('📁 Serving files from:', __dirname);
   
   console.log('\n🎯 HOW TO PLAY:');
-  console.log("hello world");
   console.log('   1. On this computer: Open http://localhost:3000');
   console.log('   2. On other devices: Open http://' + localIP + ':3000');
   console.log('   3. Choose your game mode and have fun!\n');
