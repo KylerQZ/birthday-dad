@@ -914,7 +914,11 @@
 
       // Renderer
       const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.0;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       document.getElementById('game').appendChild(renderer.domElement);
@@ -2707,6 +2711,7 @@
       window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
         renderer.setSize(window.innerWidth, window.innerHeight);
       });
 
@@ -3190,12 +3195,12 @@
                   extraCake.userData.cakeSpeed = 0.05;
                   teammates.push(teammate);
                   
-                  console.log('🎂 EXTRA CAKE SPAWNED! Footpath locked to bottom 3 rooms!');
+                  console.log('🎂 EXTRA CAKE SPAWNED!');
                   
                   // Show warning
                   const noiseIndicator = document.getElementById('noise-indicator');
                   noiseIndicator.style.display = 'block';
-                  noiseIndicator.textContent = '⚠️ ANOTHER CAKE APPEARED! IT\'S HUNTING THE BOTTOM ROOMS!';
+                  noiseIndicator.textContent = '⚠️ ANOTHER CAKE APPEARED! IT\'S HUNTING!';
                   noiseIndicator.style.color = '#ff1493';
                   setTimeout(() => {
                     noiseIndicator.style.display = 'none';
@@ -3950,6 +3955,12 @@
               const teammatePos = new THREE.Vector3(teammate.position.x, 0, teammate.position.z);
               const playerPos2D = new THREE.Vector3(camera.position.x, 0, camera.position.z);
               const distanceToPlayer = teammatePos.distanceTo(playerPos2D);
+
+              if (teammate.userData.lastCakePosX === undefined) {
+                teammate.userData.lastCakePosX = teammate.position.x;
+                teammate.userData.lastCakePosZ = teammate.position.z;
+                teammate.userData.cakeStuckTime = 0;
+              }
               
               // Initialize cake state if not set
               if (!teammate.userData.cakeState) {
@@ -3984,13 +3995,7 @@
                     teammate.position.z + direction.z * moveSpeed
                   );
                   
-                  // Extra cake restricted to bottom 3 rooms
                   let canMove = !checkCollision(newPos);
-                  if (teammate.userData.isExtraCake) {
-                    // Bottom 3 rooms: Study (x: -45 to -25, z: 13 to 30), Kitchen (x: -25 to 25, z: 0 to 30), Hall (x: -25 to 25, z: 20 to 35)
-                    const inBottomRooms = (newPos.z >= 0) && (newPos.z <= 35) && (newPos.x >= -45) && (newPos.x <= 45);
-                    canMove = canMove && inBottomRooms;
-                  }
                   
                   if (canMove) {
                     teammate.position.x = newPos.x;
@@ -4122,6 +4127,22 @@
                 if (teammatePos.distanceTo(targetWaypoint) < 3) {
                   teammate.userData.cakeWaypoint = (teammate.userData.cakeWaypoint + 1) % seekerWaypoints.length;
                 }
+              }
+
+              const cakeMovedDist = Math.hypot(
+                teammate.position.x - teammate.userData.lastCakePosX,
+                teammate.position.z - teammate.userData.lastCakePosZ
+              );
+              if (cakeMovedDist < 0.001) teammate.userData.cakeStuckTime += 0.016;
+              else teammate.userData.cakeStuckTime = 0;
+              teammate.userData.lastCakePosX = teammate.position.x;
+              teammate.userData.lastCakePosZ = teammate.position.z;
+
+              if (teammate.userData.cakeStuckTime > 1.2) {
+                teammate.userData.cakeState = 'patrol';
+                teammate.userData.searchingTime = 0;
+                teammate.userData.cakeWaypoint = Math.floor(Math.random() * seekerWaypoints.length);
+                teammate.userData.cakeStuckTime = 0;
               }
               
               return; // Skip normal teammate logic
